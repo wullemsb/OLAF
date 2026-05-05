@@ -18,6 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="OLAF.Tests\**\*.cs" />
     <Compile Remove="user-extensions\**\*.cs" />
     <None Include="user-extensions\**\*.cs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
