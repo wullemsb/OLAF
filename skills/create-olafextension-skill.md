@@ -28,6 +28,8 @@ public sealed class GreetingExtension : IOlafExtension
 {
     public string Name => "GreetingExtension";
 
+    
+
     public IEnumerable<AIFunction> GetTools(ExtensionContributionContext context)
     {
         yield return AIFunctionFactory.Create(

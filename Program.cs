@@ -49,7 +49,11 @@ while (true)
 
 	if (input.StartsWith('/'))
 	{
-		switch (input.ToLowerInvariant())
+		var parts = input.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+		var command = parts[0].ToLowerInvariant();
+		var argument = parts.Length > 1 ? parts[1].Trim() : string.Empty;
+
+		switch (command)
 		{
 			case "/exit":
 			case "/quit":
@@ -63,6 +67,67 @@ while (true)
 			case "/clear":
 				await StartNewSessionAsync();
 				Console.WriteLine("[New session started]");
+				continue;
+
+			case "/save":
+				if (string.IsNullOrWhiteSpace(argument))
+				{
+					Console.WriteLine($"[Current session ID: {session?.SessionId ?? "(none)"}]");
+					Console.WriteLine("Usage: /save <session-id>  — start a new named session");
+				}
+				else
+				{
+					await StartNewSessionAsync(argument);
+					Console.WriteLine($"[Named session started: {session!.SessionId}]");
+				}
+				continue;
+
+			case "/resume":
+				if (string.IsNullOrWhiteSpace(argument))
+				{
+					Console.WriteLine("Usage: /resume <session-id>");
+				}
+				else
+				{
+					await ResumeNamedSessionAsync(argument);
+				}
+				continue;
+
+			case "/sessions":
+				var sessions = await client.ListSessionsAsync();
+				var sessionList = sessions.ToList();
+				if (sessionList.Count == 0)
+				{
+					Console.WriteLine("[No saved sessions found]");
+				}
+				else
+				{
+					Console.WriteLine("[Saved sessions]");
+					foreach (var s in sessionList)
+					{
+						var marker = s.SessionId == session?.SessionId ? " (current)" : string.Empty;
+						Console.WriteLine($"  {s.SessionId}{marker}");
+					}
+				}
+				continue;
+
+			case "/delete":
+				if (string.IsNullOrWhiteSpace(argument))
+				{
+					Console.WriteLine("Usage: /delete <session-id>");
+				}
+				else
+				{
+					if (argument == session?.SessionId)
+					{
+						await StartNewSessionAsync();
+						Console.WriteLine("[New session started]");
+					}
+					await client.DeleteSessionAsync(argument);
+					Console.ForegroundColor = ConsoleColor.DarkGray;
+					Console.WriteLine($"[Session '{argument}' deleted]");
+					Console.ResetColor();
+				}
 				continue;
 
 			case "/help":
@@ -87,7 +152,7 @@ while (true)
 	}
 }
 
-async Task StartNewSessionAsync()
+async Task StartNewSessionAsync(string? sessionId = null)
 {
 	if (session is not null)
 	{
@@ -101,7 +166,7 @@ async Task StartNewSessionAsync()
 	var tools = CreateBuiltInTools();
 	tools.AddRange(currentExtensionLoad.Tools);
 
-	session = await client.CreateSessionAsync(new SessionConfig
+	var sessionConfig = new SessionConfig
 	{
 		Model = config.Model,
 		Streaming = true,
@@ -112,7 +177,50 @@ async Task StartNewSessionAsync()
 		},
 		Tools = tools,
 		SkillDirectories = skillDirectories
-	});
+	};
+
+	if (!string.IsNullOrWhiteSpace(sessionId))
+	{
+		sessionConfig.SessionId = sessionId;
+	}
+
+	session = await client.CreateSessionAsync(sessionConfig);
+}
+
+async Task ResumeNamedSessionAsync(string sessionId)
+{
+	if (session is not null)
+	{
+		await session.DisposeAsync();
+	}
+
+	currentExtensionLoad?.Dispose();
+	currentExtensionLoad = extensionLoader.LoadTools();
+	PrintExtensionLoadMessages(currentExtensionLoad);
+
+	var tools = CreateBuiltInTools();
+	tools.AddRange(currentExtensionLoad.Tools);
+
+	try
+	{
+		session = await client.ResumeSessionAsync(sessionId, new ResumeSessionConfig
+		{
+			Streaming = true,
+			Tools = tools,
+			SkillDirectories = skillDirectories
+		});
+		Console.ForegroundColor = ConsoleColor.Cyan;
+		Console.WriteLine($"[Resumed session: {session.SessionId}]");
+		Console.ResetColor();
+	}
+	catch (Exception ex)
+	{
+		Console.ForegroundColor = ConsoleColor.Red;
+		Console.WriteLine($"[Error] Could not resume session '{sessionId}': {ex.Message}");
+		Console.ResetColor();
+		await StartNewSessionAsync();
+		Console.WriteLine("[Started a new session instead]");
+	}
 }
 
 static List<string> ResolveSkillDirectories(string applicationBaseDirectory, CopilotConfig config)
@@ -206,9 +314,13 @@ static void PrintHelp()
 {
 	Console.WriteLine("Type your coding question or command. Type /help for options.");
 	Console.WriteLine();
-	Console.WriteLine("/help  Show available commands");
-	Console.WriteLine("/clear Start a fresh session");
-	Console.WriteLine("/exit  Quit the application");
+	Console.WriteLine("/help              Show available commands");
+	Console.WriteLine("/clear             Start a fresh session");
+	Console.WriteLine("/save <id>         Start a new named session (resumable later)");
+	Console.WriteLine("/sessions          List all saved sessions");
+	Console.WriteLine("/resume <id>       Resume a previously saved session");
+	Console.WriteLine("/delete <id>       Permanently delete a session");
+	Console.WriteLine("/exit              Quit the application");
 	Console.WriteLine();
 }
 
