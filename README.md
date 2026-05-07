@@ -7,14 +7,16 @@ It starts an interactive chat session, streams model responses to the terminal, 
 - Built-in local tools (file system exploration)
 - Optional runtime extension tools loaded from assemblies
 - Optional Markdown skills loaded from a local skills directory
-- Session persistence — save, resume, list, and delete named sessions
+- Session persistence — start, resume, list, and delete named sessions
+- Permission handling for tools in "safe" sessions
 
 ## Features
 
 - Interactive CLI loop with slash commands
 - Streaming assistant output
 - Configurable model and system prompt
-- Session persistence (save, resume, list, delete named sessions)
+- Session persistence (start, resume, list, delete named sessions)
+- Permission handling for tools in "safe" sessions
 - Built-in tools:
   - `read_file`
   - `list_files`
@@ -85,7 +87,7 @@ flowchart TD
 
 At session start (or after `/clear`), OLAF rebuilds the active toolset by combining built-in tools with successfully loaded extension tools, then creates a new Copilot session with optional skills.
 
-Named sessions created with `/save` persist on disk and can be resumed across application restarts.
+Named sessions created with `/start  <id>` persist on disk and can be resumed across application restarts.
 
 ## Configuration
 
@@ -119,7 +121,7 @@ Inside the running app:
 |---|---|
 | `/help` | Show available commands |
 | `/clear` | Start a fresh Copilot session and reload tools |
-| `/save <id>` | Start a new named session with the given ID (persisted to disk, resumable later). With no argument, shows the current session ID. |
+| `/start safe [id]` | Start a named session that prompts for tool permissions. Optionally pass an ID to persist and resume it later. |
 | `/sessions` | List all saved sessions, marking the currently active one |
 | `/resume <id>` | Resume a previously saved named session (restores conversation context) |
 | `/delete <id>` | Permanently delete a saved session and all its data |
@@ -130,7 +132,7 @@ Inside the running app:
 Named sessions survive application restarts. Typical workflow:
 
 ```
-> /save my-project          # start a named session
+> /start my-project          # start a named session
 > Tell me about SOLID       # have a conversation
 > /exit                     # close the app
 
@@ -210,7 +212,7 @@ The extension lifecycle runs during startup and every time `/clear` is used.
 
 ```mermaid
 flowchart TD
-  A[Session start, /clear, /save, or /resume] --> B[Resolve/Create extension directory]
+  A[Session start, /clear, /start, or /resume] --> B[Resolve/Create extension directory]
   B --> C[Find *.cs extension sources]
   C --> D[Roslyn compile to in-memory DLL/PDB]
   D --> E{Compilation success?}

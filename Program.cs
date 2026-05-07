@@ -30,6 +30,7 @@ await client.StartAsync();
 
 CopilotSession? session = null;
 ExtensionToolLoadResult? currentExtensionLoad = null;
+var activePermissionHandler = PermissionHandler.ApproveAll;
 await StartNewSessionAsync();
 
 PrintBanner();
@@ -65,22 +66,25 @@ while (true)
 				return;
 
 			case "/clear":
+					activePermissionHandler = PermissionHandler.ApproveAll;
 				await StartNewSessionAsync();
 				Console.WriteLine("[New session started]");
 				continue;
 
-			case "/save":
-				if (string.IsNullOrWhiteSpace(argument))
-				{
-					Console.WriteLine($"[Current session ID: {session?.SessionId ?? "(none)"}]");
-					Console.WriteLine("Usage: /save <session-id>  — start a new named session");
-				}
-				else
-				{
-					await StartNewSessionAsync(argument);
-					Console.WriteLine($"[Named session started: {session!.SessionId}]");
-				}
-				continue;
+				case "/safe":
+					activePermissionHandler = PromptForPermissionAsync;
+					if (string.IsNullOrWhiteSpace(argument))
+					{
+						await StartNewSessionAsync();
+						Console.WriteLine($"[Safe session started: {session!.SessionId}]");
+					}
+					else
+					{
+						await StartNewSessionAsync(argument);
+						Console.WriteLine($"[Named safe session started: {session!.SessionId}]");
+					}
+					Console.WriteLine("[Tool permission prompts are enabled for this session]");
+					continue;
 
 			case "/resume":
 				if (string.IsNullOrWhiteSpace(argument))
@@ -89,6 +93,7 @@ while (true)
 				}
 				else
 				{
+					activePermissionHandler = PermissionHandler.ApproveAll;
 					await ResumeNamedSessionAsync(argument);
 				}
 				continue;
@@ -170,7 +175,7 @@ async Task StartNewSessionAsync(string? sessionId = null)
 	{
 		Model = config.Model,
 		Streaming = true,
-		OnPermissionRequest = PermissionHandler.ApproveAll,
+		OnPermissionRequest = activePermissionHandler,
 		SystemMessage = new SystemMessageConfig
 		{
 			Mode = SystemMessageMode.Append,
@@ -206,7 +211,7 @@ async Task ResumeNamedSessionAsync(string sessionId)
 	{
 		session = await client.ResumeSessionAsync(sessionId, new ResumeSessionConfig
 		{
-			OnPermissionRequest = PermissionHandler.ApproveAll,
+			OnPermissionRequest = activePermissionHandler,
 			Streaming = true,
 			Tools = tools,
 			SkillDirectories = skillDirectories
@@ -318,13 +323,48 @@ static void PrintHelp()
 	Console.WriteLine();
 	Console.WriteLine("/help              Show available commands");
 	Console.WriteLine("/clear             Start a fresh session");
-	Console.WriteLine("/save <id>         Start a new named session (resumable later)");
+	Console.WriteLine("/safe [id]         Start a safe session with tool permission prompts");
 	Console.WriteLine("/sessions          List all saved sessions");
 	Console.WriteLine("/resume <id>       Resume a previously saved session");
 	Console.WriteLine("/delete <id>       Permanently delete a session");
 	Console.WriteLine("/exit              Quit the application");
 	Console.WriteLine();
 }
+
+static Task<PermissionRequestResult> PromptForPermissionAsync(PermissionRequest request, PermissionInvocation invocation)
+{
+	var description = DescribePermissionRequest(request);
+
+	Console.ForegroundColor = ConsoleColor.Magenta;
+	Console.WriteLine();
+	Console.WriteLine($"[Permission request] {description}");
+	Console.Write("Allow this action? [y/N]: ");
+	Console.ResetColor();
+
+	var answer = Console.ReadLine()?.Trim();
+	var approved = string.Equals(answer, "y", StringComparison.OrdinalIgnoreCase) ||
+		string.Equals(answer, "yes", StringComparison.OrdinalIgnoreCase);
+
+	return Task.FromResult(new PermissionRequestResult
+	{
+		Kind = approved
+			? PermissionRequestResultKind.Approved
+			: PermissionRequestResultKind.Rejected
+	});
+}
+
+static string DescribePermissionRequest(PermissionRequest request) => request switch
+{
+	PermissionRequestCustomTool customTool => $"Tool '{customTool.ToolName}' with args: {customTool.Args}",
+	PermissionRequestMcp mcp => $"MCP tool '{mcp.ToolName}' on server '{mcp.ServerName}'",
+	PermissionRequestShell shell => $"Shell command '{shell.FullCommandText}'",
+	PermissionRequestRead read => $"Read access to '{read.Path}'",
+	PermissionRequestWrite write => $"Write access to '{write.FileName}'",
+	PermissionRequestUrl url => $"Open URL '{url.Url}'",
+	PermissionRequestMemory memory => $"Memory action '{memory.Action?.ToString() ?? "unknown"}'",
+	PermissionRequestHook hook => $"Hook '{hook.ToolName}'",
+	_ => $"Permission kind '{request.Kind}'"
+};
 
 static void PrintExtensionLoadMessages(ExtensionToolLoadResult loadResult)
 {
