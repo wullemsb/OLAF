@@ -50,7 +50,7 @@ Use this checklist when setting up OLAF on a fresh machine:
 
 1. Install the .NET 10 SDK.
 2. Clone the repository and run `dotnet restore`.
-3. Set your GitHub token in `appsettings.json` or as `COPILOT_Copilot__GithubToken`.
+3. Set your GitHub token in `appsettings.json` or as `COPILOT_Copilot__GitHubToken`.
 4. Verify extension and skills directories exist (`user-extensions`, `skills`).
 5. Run `dotnet run --project OLAF.csproj`.
 6. In the CLI, run `/help` and send a simple prompt to confirm responses stream correctly.
@@ -98,7 +98,7 @@ Configuration is read from:
 Main settings (under `Copilot`):
 
 - `Model` (default: `gpt-5`)
-- `GithubToken`
+- `GitHubToken`
 - `EnableExtensions`
 - `ExtensionsDirectory` (default: `user-extensions`)
 - `EnableSkills`
@@ -108,7 +108,7 @@ Main settings (under `Copilot`):
 Example environment variable for the GitHub token:
 
 ```powershell
-$env:COPILOT_Copilot__GithubToken = "<your-token>"
+$env:COPILOT_Copilot__GitHubToken = "<your-token>"
 ```
 
 ## CLI Commands
@@ -253,6 +253,6 @@ By default, skill markdown files are expected under:
 ## Troubleshooting
 
 - If extension tools are not available, check startup messages for extension load warnings/errors.
-- If model calls fail, verify `GithubToken` is present and valid.
+- If model calls fail, verify `GitHubToken` is present and valid.
 - If skills are not loaded, verify `EnableSkills` is true and `SkillsDirectory` exists.
 

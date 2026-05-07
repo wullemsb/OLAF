@@ -19,11 +19,11 @@ public sealed class CopilotConfigTests
     }
 
     [Fact]
-    public void DefaultGithubToken_IsNull()
+    public void DefaultGitHubToken_IsNull()
     {
         var config = new CopilotConfig();
 
-        Assert.Null(config.GithubToken);
+        Assert.Null(config.GitHubToken);
     }
 
     [Fact]
@@ -72,7 +72,7 @@ public sealed class CopilotConfigTests
         var config = new CopilotConfig
         {
             Model = "gpt-4o",
-            GithubToken = "tok_test",
+            GitHubToken = "tok_test",
             EnableExtensions = false,
             EnableSkills = false,
             ExtensionsDirectory = "/custom/ext",
@@ -81,7 +81,7 @@ public sealed class CopilotConfigTests
         };
 
         Assert.Equal("gpt-4o", config.Model);
-        Assert.Equal("tok_test", config.GithubToken);
+        Assert.Equal("tok_test", config.GitHubToken);
         Assert.False(config.EnableExtensions);
         Assert.False(config.EnableSkills);
         Assert.Equal("/custom/ext", config.ExtensionsDirectory);

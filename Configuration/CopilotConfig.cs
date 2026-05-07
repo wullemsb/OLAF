@@ -6,7 +6,7 @@ public sealed class CopilotConfig
 
     public string Model { get; init; } = "gpt-5";
 
-    public string? GithubToken { get; init; }
+    public string? GitHubToken { get; init; }
 
     public bool EnableExtensions { get; init; } = true;
 

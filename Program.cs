@@ -20,9 +20,9 @@ var skillDirectories = ResolveSkillDirectories(AppContext.BaseDirectory, config)
 var extensionLoader = new ExtensionToolLoader(AppContext.BaseDirectory, config);
 
 var clientOptions = new CopilotClientOptions();
-if (!string.IsNullOrWhiteSpace(config.GithubToken))
+if (!string.IsNullOrWhiteSpace(config.GitHubToken))
 {
-	clientOptions.GithubToken = config.GithubToken;
+	clientOptions.GitHubToken = config.GitHubToken;
 }
 
 await using var client = new CopilotClient(clientOptions);
@@ -170,6 +170,7 @@ async Task StartNewSessionAsync(string? sessionId = null)
 	{
 		Model = config.Model,
 		Streaming = true,
+		OnPermissionRequest = PermissionHandler.ApproveAll,
 		SystemMessage = new SystemMessageConfig
 		{
 			Mode = SystemMessageMode.Append,
@@ -205,6 +206,7 @@ async Task ResumeNamedSessionAsync(string sessionId)
 	{
 		session = await client.ResumeSessionAsync(sessionId, new ResumeSessionConfig
 		{
+			OnPermissionRequest = PermissionHandler.ApproveAll,
 			Streaming = true,
 			Tools = tools,
 			SkillDirectories = skillDirectories

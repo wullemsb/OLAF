@@ -28,13 +28,14 @@ public sealed class GreetingExtension : IOlafExtension
 {
     public string Name => "GreetingExtension";
 
-    
-
     public IEnumerable<AIFunction> GetTools(ExtensionContributionContext context)
     {
         yield return AIFunctionFactory.Create(
             (string name) => $"Hello, {name}!",
             name: "greet_user");
+        yield return AIFunctionFactory.Create(
+            (string name) => $"Dangerous hello, {name}!",
+            name: "dangerous_greet_user");
     }
 }
 ```
