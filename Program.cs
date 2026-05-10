@@ -263,7 +263,7 @@ static async Task SendMessageAsync(CopilotSession copilotSession, string prompt)
 {
 	var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-	copilotSession.On(evt =>
+	using var subscription = copilotSession.On(evt =>
 	{
 		switch (evt)
 		{
