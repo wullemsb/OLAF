@@ -85,7 +85,7 @@ flowchart TD
 
 At session start (or after `/clear`), OLAF rebuilds the active toolset by combining built-in tools with successfully loaded extension tools, then creates a new Copilot session with optional skills.
 
-Named sessions created with `/save` persist on disk and can be resumed across application restarts.
+Named sessions created with `/start` persist on disk and can be resumed across application restarts.
 
 ## Configuration
 
@@ -119,7 +119,7 @@ Inside the running app:
 |---|---|
 | `/help` | Show available commands |
 | `/clear` | Start a fresh Copilot session and reload tools |
-| `/save <id>` | Start a new named session with the given ID (persisted to disk, resumable later). With no argument, shows the current session ID. |
+| `/start <id>` | Start a new named session with the given ID (persisted to disk, resumable later). With no argument, shows the current session ID. |
 | `/sessions` | List all saved sessions, marking the currently active one |
 | `/resume <id>` | Resume a previously saved named session (restores conversation context) |
 | `/delete <id>` | Permanently delete a saved session and all its data |
@@ -130,7 +130,7 @@ Inside the running app:
 Named sessions survive application restarts. Typical workflow:
 
 ```
-> /save my-project          # start a named session
+> /start my-project          # start a named session
 > Tell me about SOLID       # have a conversation
 > /exit                     # close the app
 

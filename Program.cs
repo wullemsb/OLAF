@@ -25,6 +25,9 @@ if (!string.IsNullOrWhiteSpace(config.GitHubToken))
 	clientOptions.GitHubToken = config.GitHubToken;
 }
 
+//Change the Copilot home directory to define where session state is stored.
+clientOptions.CopilotHome= Path.Combine(AppContext.BaseDirectory, "copilot-home");
+
 await using var client = new CopilotClient(clientOptions);
 await client.StartAsync();
 
@@ -69,11 +72,11 @@ while (true)
 				Console.WriteLine("[New session started]");
 				continue;
 
-			case "/save":
+			case "/start":
 				if (string.IsNullOrWhiteSpace(argument))
 				{
 					Console.WriteLine($"[Current session ID: {session?.SessionId ?? "(none)"}]");
-					Console.WriteLine("Usage: /save <session-id>  — start a new named session");
+					Console.WriteLine("Usage: /start <session-id>  — start a new named session");
 				}
 				else
 				{
@@ -176,6 +179,11 @@ async Task StartNewSessionAsync(string? sessionId = null)
 			Mode = SystemMessageMode.Append,
 			Content = config.SystemPrompt
 		},
+		InfiniteSessions = new InfiniteSessionConfig {
+           Enabled = true, //Enabled by default
+           BackgroundCompactionThreshold = 0.8,
+           BufferExhaustionThreshold=0.9
+        },
 		Tools = tools,
 		SkillDirectories = skillDirectories
 	};
@@ -318,7 +326,7 @@ static void PrintHelp()
 	Console.WriteLine();
 	Console.WriteLine("/help              Show available commands");
 	Console.WriteLine("/clear             Start a fresh session");
-	Console.WriteLine("/save <id>         Start a new named session (resumable later)");
+	Console.WriteLine("/start <id>         Start a new named session (resumable later)");
 	Console.WriteLine("/sessions          List all saved sessions");
 	Console.WriteLine("/resume <id>       Resume a previously saved session");
 	Console.WriteLine("/delete <id>       Permanently delete a session");
