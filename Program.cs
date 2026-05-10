@@ -34,6 +34,7 @@ await client.StartAsync();
 CopilotSession? session = null;
 ExtensionToolLoadResult? currentExtensionLoad = null;
 bool safeMode = false;
+
 await StartNewSessionAsync();
 
 Console.Title = "OLAF";
@@ -134,6 +135,7 @@ while (true)
 				continue;
 
 			case "/safemode":
+			    await StartNewSessionAsync();
 				safeMode = !safeMode;
 				Console.Title = safeMode ? "OLAF [SAFE MODE]" : "OLAF";
 				PrintSafeModeBanner();
@@ -278,6 +280,7 @@ async Task<PermissionRequestResult> HandlePermissionRequestAsync(PermissionReque
 
 async Task<PreToolUseHookOutput?> HandlePreToolUseAsync(PreToolUseHookInput input, HookInvocation invocation)
 {
+	Console.WriteLine($"[PreToolUseHook] Tool: {input.ToolName}, Args: {input.ToolArgs}");
 	if (!safeMode)
 		return new PreToolUseHookOutput { PermissionDecision = "allow" };
 
@@ -369,10 +372,6 @@ async Task SendMessageAsync(CopilotSession copilotSession, string prompt)
 		{
 			case AssistantMessageDeltaEvent delta:
 				Console.Write(delta.Data.DeltaContent);
-				break;
-
-			case AssistantMessageEvent msg:
-				Console.Write(msg.Data.Content);
 				break;
 
 			case ToolExecutionStartEvent toolStart:
