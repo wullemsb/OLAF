@@ -10,12 +10,9 @@ Use this guide to create an extension that OLAF can load from the user-extension
 
 ## Steps
 
-1. Create a class library targeting `net10.0`.
+1. Create a file under `user-extensions` and implement the extension class. The file can be named anything, but it must be a `.cs` file and contain a class that implements `IOlafExtension`.
 2. Reference the `GitHub.Copilot.SDK` package and the OLAF app assembly that contains `IOlafExtension`.
 3. Implement `IOlafExtension` and return one or more `AIFunction` tools.
-4. Build the project.
-5. Copy the resulting `.dll` to OLAF's `user-extensions` directory.
-6. Start OLAF and verify extension load messages in the console.
 
 ## Small Example
 
@@ -42,6 +39,6 @@ public sealed class GreetingExtension : IOlafExtension
 
 ## Validation Checklist
 
-- The extension DLL exists under `user-extensions`.
+- The extension cs file exists under `user-extensions`.
 - OLAF prints a message that the extension and tool were loaded.
 - The assistant can invoke `greet_user` when needed.
