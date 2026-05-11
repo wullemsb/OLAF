@@ -57,6 +57,28 @@ Use this checklist when setting up OLAF on a fresh machine:
 
 ## Architecture
 
+This diagram shows the main runtime pieces and how they connect at a high level:
+
+```mermaid
+flowchart LR
+  U[User] --> CLI[Program.cs CLI]
+  CLI --> CS[Copilot Session]
+  CLI --> BT[Built-in Tools]
+  CLI --> EX[Runtime Extensions]
+  CLI --> SK[Local Skills]
+
+  BT --> FS[FileSystemTools]
+  EX --> LOADER[ExtensionToolLoader]
+  LOADER --> EXT[user-extensions]
+  SK --> DIR[skills/]
+
+  CS --> MODEL[GitHub Copilot Model]
+  CS --> OUT[Streaming Console Output]
+  CLI --> CFG[Configuration]
+  CFG --> APP[appsettings.json]
+  CFG --> ENV[Environment Variables]
+```
+
 ```mermaid
 flowchart TD
   U[User in Terminal] --> P[Program.cs CLI Loop]
