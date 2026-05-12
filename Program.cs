@@ -33,16 +33,17 @@ await client.StartAsync();
 
 CopilotSession? session = null;
 ExtensionToolLoadResult? currentExtensionLoad = null;
+bool safeMode = false;
+
 await StartNewSessionAsync();
 
+Console.Title = "OLAF";
 PrintBanner();
 PrintHelp();
 
 while (true)
 {
-	Console.ForegroundColor = ConsoleColor.Green;
-	Console.Write("> ");
-	Console.ResetColor();
+	PrintPrompt();
 
 	var input = Console.ReadLine()?.Trim();
 	if (string.IsNullOrWhiteSpace(input))
@@ -133,6 +134,13 @@ while (true)
 				}
 				continue;
 
+			case "/safemode":
+			    await StartNewSessionAsync();
+				safeMode = !safeMode;
+				Console.Title = safeMode ? "OLAF [SAFE MODE]" : "OLAF";
+				PrintSafeModeBanner();
+				continue;
+
 			case "/help":
 				PrintHelp();
 				continue;
@@ -173,7 +181,7 @@ async Task StartNewSessionAsync(string? sessionId = null)
 	{
 		Model = config.Model,
 		Streaming = true,
-		OnPermissionRequest = PermissionHandler.ApproveAll,
+		OnPermissionRequest = HandlePermissionRequestAsync,
 		SystemMessage = new SystemMessageConfig
 		{
 			Mode = SystemMessageMode.Append,
@@ -185,7 +193,11 @@ async Task StartNewSessionAsync(string? sessionId = null)
            BufferExhaustionThreshold=0.9
         },
 		Tools = tools,
-		SkillDirectories = skillDirectories
+		SkillDirectories = skillDirectories,
+		Hooks = new SessionHooks
+		{
+			OnPreToolUse = HandlePreToolUseAsync
+		}
 	};
 
 	if (!string.IsNullOrWhiteSpace(sessionId))
@@ -214,10 +226,14 @@ async Task ResumeNamedSessionAsync(string sessionId)
 	{
 		session = await client.ResumeSessionAsync(sessionId, new ResumeSessionConfig
 		{
-			OnPermissionRequest = PermissionHandler.ApproveAll,
+			OnPermissionRequest = HandlePermissionRequestAsync,
 			Streaming = true,
 			Tools = tools,
-			SkillDirectories = skillDirectories
+			SkillDirectories = skillDirectories,
+			Hooks = new SessionHooks
+			{
+				OnPreToolUse = HandlePreToolUseAsync
+			}
 		});
 		Console.ForegroundColor = ConsoleColor.Cyan;
 		Console.WriteLine($"[Resumed session: {session.SessionId}]");
@@ -231,6 +247,93 @@ async Task ResumeNamedSessionAsync(string sessionId)
 		await StartNewSessionAsync();
 		Console.WriteLine("[Started a new session instead]");
 	}
+}
+
+async Task<PermissionRequestResult> HandlePermissionRequestAsync(PermissionRequest request, PermissionInvocation invocation)
+{
+	if (!safeMode)
+		return await PermissionHandler.ApproveAll(request, invocation);
+
+	Console.ForegroundColor = ConsoleColor.Yellow;
+	Console.WriteLine();
+	var description = request switch
+	{
+		PermissionRequestShell shell => $"shell command: {shell.FullCommandText}",
+		PermissionRequestWrite write => $"write file: {write.FileName}",
+		PermissionRequestRead read => $"read path: {read.Path}",
+		PermissionRequestCustomTool tool => $"custom tool: {tool.ToolName}",
+		PermissionRequestMcp mcp => $"MCP tool: {mcp.ToolName} ({mcp.ServerName})",
+		PermissionRequestUrl url => $"fetch URL: {url.Url}",
+		_ => $"operation ({request.Kind})"
+	};
+	Console.Write($"[Safe Mode] Allow {description}? (y/n): ");
+	Console.ResetColor();
+
+	var answer = Console.ReadLine()?.Trim().ToLowerInvariant();
+	return new PermissionRequestResult
+	{
+		Kind = answer == "y"
+			? PermissionRequestResultKind.Approved
+			: PermissionRequestResultKind.Rejected
+	};
+}
+
+async Task<PreToolUseHookOutput?> HandlePreToolUseAsync(PreToolUseHookInput input, HookInvocation invocation)
+{
+	Console.WriteLine($"[PreToolUseHook] Tool: {input.ToolName}, Args: {input.ToolArgs}");
+	if (!safeMode)
+		return new PreToolUseHookOutput { PermissionDecision = "allow" };
+
+	Console.ForegroundColor = ConsoleColor.Magenta;
+	Console.WriteLine();
+	Console.WriteLine($"[Safe Mode] Tool: {input.ToolName}");
+	if (input.ToolArgs is not null)
+		Console.WriteLine($"            Args: {input.ToolArgs}");
+	Console.Write("Allow? (y/n): ");
+	Console.ResetColor();
+
+	var answer = Console.ReadLine()?.Trim().ToLowerInvariant();
+	bool allowed = answer == "y";
+	return new PreToolUseHookOutput
+	{
+		PermissionDecision = allowed ? "allow" : "deny",
+		PermissionDecisionReason = allowed ? "Approved by user" : "Denied by user"
+	};
+}
+
+void PrintPrompt()
+{
+	if (safeMode)
+	{
+		Console.ForegroundColor = ConsoleColor.Red;
+		Console.Write("[SAFE] > ");
+	}
+	else
+	{
+		Console.ForegroundColor = ConsoleColor.Green;
+		Console.Write("> ");
+	}
+	Console.ResetColor();
+}
+
+void PrintSafeModeBanner()
+{
+	Console.WriteLine();
+	if (safeMode)
+	{
+		Console.ForegroundColor = ConsoleColor.Red;
+		Console.WriteLine("  ╔══════════════════════════════════╗");
+		Console.WriteLine("  ║      ⚠   SAFE MODE ON   ⚠       ║");
+		Console.WriteLine("  ║  Tools require your approval     ║");
+		Console.WriteLine("  ╚══════════════════════════════════╝");
+	}
+	else
+	{
+		Console.ForegroundColor = ConsoleColor.Cyan;
+		Console.WriteLine("  [ Safe mode OFF — tools auto-approved ]");
+	}
+	Console.ResetColor();
+	Console.WriteLine();
 }
 
 static List<string> ResolveSkillDirectories(string applicationBaseDirectory, CopilotConfig config)
@@ -259,7 +362,7 @@ static List<AIFunction> CreateBuiltInTools()
 	];
 }
 
-static async Task SendMessageAsync(CopilotSession copilotSession, string prompt)
+async Task SendMessageAsync(CopilotSession copilotSession, string prompt)
 {
 	var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -271,12 +374,8 @@ static async Task SendMessageAsync(CopilotSession copilotSession, string prompt)
 				Console.Write(delta.Data.DeltaContent);
 				break;
 
-			case AssistantMessageEvent msg:
-				Console.Write(msg.Data.Content);
-				break;
-
 			case ToolExecutionStartEvent toolStart:
-				Console.ForegroundColor = ConsoleColor.Yellow;
+				Console.ForegroundColor = safeMode ? ConsoleColor.Red : ConsoleColor.Yellow;
 				Console.WriteLine();
 				Console.WriteLine($"[Tool: {toolStart.Data.ToolName}({toolStart.Data.Arguments})]");
 				Console.ResetColor();
@@ -330,6 +429,7 @@ static void PrintHelp()
 	Console.WriteLine("/sessions          List all saved sessions");
 	Console.WriteLine("/resume <id>       Resume a previously saved session");
 	Console.WriteLine("/delete <id>       Permanently delete a session");
+	Console.WriteLine("/safemode          Toggle safe mode (prompts for approval before each tool call)");
 	Console.WriteLine("/exit              Quit the application");
 	Console.WriteLine();
 }
