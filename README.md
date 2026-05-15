@@ -2,6 +2,8 @@
 
 OLAF is a console-based AI coding assistant built on the GitHub Copilot SDK for .NET.
 
+![olaf](olaf.png)
+
 It starts an interactive chat session, streams model responses to the terminal, and supports:
 
 - Built-in local tools (file system exploration)
